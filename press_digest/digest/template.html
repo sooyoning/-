@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>금융 뉴스 누적 정리</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2330;--mute:#667085;--line:#e3e6ec;--acc:#1f3a8a;--accbg:#e8edfb;--hi:#b42318;--mid:#b54708}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b2029;--ink:#e6e9ef;--mute:#9aa4b5;--line:#2c3340;--acc:#9db4ff;--accbg:#27325a;--hi:#ff8a80;--mid:#ffb74d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+header{padding:16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5}
+h1{margin:0 0 8px;font-size:18px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input,select,button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+input[type=search]{min-width:200px;flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{cursor:pointer;border-radius:999px;padding:3px 10px;border:1px solid var(--line);background:var(--card);font-size:13px}
+.chip.on{background:var(--accbg);color:var(--acc);border-color:var(--acc);font-weight:600}
+main{max-width:1100px;margin:0 auto;padding:12px 16px 60px}
+.count{color:var(--mute);margin:8px 0}
+h2{font-size:16px;margin:22px 0 8px;color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
+.meta{color:var(--mute);font-size:12.5px}
+.title{font-weight:700;font-size:15px;margin:2px 0 6px}
+.tag{display:inline-block;font-size:11.5px;padding:0 7px;border-radius:999px;background:var(--accbg);color:var(--acc);margin-right:4px}
+.tag.hi{color:var(--hi)}.tag.mid{color:var(--mid)}
+details summary{cursor:pointer;color:var(--acc);margin-top:6px}
+.sec{margin:8px 0 0}.sec b{display:block;font-size:12.5px;color:var(--mute);margin-bottom:2px}
+ul{margin:0;padding-left:18px}li{margin:1px 0}
+.impl{background:var(--accbg);border-radius:8px;padding:6px 10px}
+@media (max-width:600px){header{position:static}}
+</style>
+</head>
+<body>
+<header>
+  <h1>금융 뉴스 누적 정리 <span class="meta" id="gen"></span></h1>
+  <div class="bar">
+    <input type="search" id="q" placeholder="검색 (제목·수치·입장·시사점)">
+    <input type="date" id="from"><span class="meta">~</span><input type="date" id="to">
+    <select id="media"><option value="">매체 전체</option></select>
+    <select id="issue"><option value="">이슈 전체</option></select>
+    <select id="rel"><option value="">관련도 전체</option><option value="보통">보통 이상</option><option value="높음">높음만</option></select>
+    <select id="group"><option value="cat">소관분야별</option><option value="issue">이슈별(시간순)</option><option value="date">일자별</option></select>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+<main><div class="count" id="count"></div><div id="out"></div></main>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const RANK = {'낮음':0,'보통':1,'높음':2};
+const WD = '일월화수목금토';
+const fmtDate = d => { const [y,m,dd] = d.split('-').map(Number); return `${y}.${String(m).padStart(2,'0')}.${String(dd).padStart(2,'0')}(${WD[new Date(y,m-1,dd).getDay()]})`; };
+let activeCats = new Set();
+$('gen').textContent = `· 기사 ${D.records.length}건 · 생성 ${D.generated}`;
+const uniq = a => [...new Set(a)].filter(Boolean).sort();
+uniq(D.records.map(r => r.media)).forEach(m => $('media').add(new Option(m, m)));
+uniq(D.records.map(r => r.issue)).forEach(i => $('issue').add(new Option(i, i)));
+const catCount = c => D.records.filter(r => r.category === c).length;
+D.categories.forEach(c => {
+  const n = catCount(c); if (!n) return;
+  const el = document.createElement('span'); el.className = 'chip'; el.textContent = `${c} ${n}`;
+  el.onclick = () => { activeCats.has(c) ? activeCats.delete(c) : activeCats.add(c); el.classList.toggle('on'); render(); };
+  $('chips').appendChild(el);
+});
+['q','from','to','media','issue','rel','group'].forEach(id => $(id).addEventListener('input', render));
+
+function match(r) {
+  const q = $('q').value.trim();
+  if (activeCats.size && ![r.category, ...r.sub_categories].some(c => activeCats.has(c))) return false;
+  if ($('from').value && r.date < $('from').value) return false;
+  if ($('to').value && r.date > $('to').value) return false;
+  if ($('media').value && r.media !== $('media').value) return false;
+  if ($('issue').value && r.issue !== $('issue').value) return false;
+  if ($('rel').value && RANK[r.relevance] < RANK[$('rel').value]) return false;
+  if (q) {
+    const blob = [r.title, r.situation, r.implications, r.issue, ...r.facts, ...r.stances.map(s => s.actor + s.position)].join(' ');
+    if (!blob.includes(q)) return false;
+  }
+  return true;
+}
+function card(r) {
+  const relCls = r.relevance === '높음' ? 'hi' : r.relevance === '보통' ? 'mid' : '';
+  const sts = r.stances.map(s => `<li>[${esc(s.group)}] ${s.actor ? '<b>' + esc(s.actor) + '</b>: ' : ''}${esc(s.position)}</li>`).join('');
+  return `<div class="card">
+    <div class="meta">${fmtDate(r.date)} · ${esc(r.media)} · ${esc(r.page_label)}</div>
+    <div class="title">${esc(r.title)}</div>
+    <div><span class="tag">${esc(r.category)}</span>${r.sub_categories.map(c => `<span class="tag">${esc(c)}</span>`).join('')}${r.issue ? `<span class="tag">이슈 · ${esc(r.issue)}</span>` : ''}<span class="tag ${relCls}">관련도 ${esc(r.relevance)}</span></div>
+    <div class="sec"><b>사실관계(수치)</b><ul>${r.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div>
+    <details><summary>상황 · 입장 · 시사점</summary>
+      <div class="sec"><b>상황</b>${esc(r.situation)}</div>
+      <div class="sec"><b>금융위·금감원 등 및 이해관계자 입장</b>${sts ? `<ul>${sts}</ul>` : '<span class="meta">기사에 명시된 입장 없음</span>'}</div>
+      <div class="sec"><b>시사점 (분석·의견)</b><div class="impl">${esc(r.implications)}</div></div>
+      ${r.notes ? `<div class="sec meta">※ ${esc(r.notes)}</div>` : ''}
+    </details></div>`;
+}
+function render() {
+  const rows = D.records.filter(match);
+  const mode = $('group').value;
+  const key = mode === 'cat' ? r => r.category : mode === 'issue' ? r => r.issue || '(이슈 미지정)' : r => fmtDate(r.date);
+  const groups = new Map();
+  rows.forEach(r => { const k = key(r); (groups.get(k) || groups.set(k, []).get(k)).push(r); });
+  let keys = [...groups.keys()];
+  if (mode === 'cat') keys.sort((a,b) => D.categories.indexOf(a) - D.categories.indexOf(b));
+  if (mode === 'issue') keys.sort((a,b) => groups.get(b).length - groups.get(a).length);
+  $('count').textContent = `${rows.length}건`;
+  $('out').innerHTML = keys.map(k => {
+    const g = groups.get(k); if (mode === 'issue') g.sort((a,b) => a.date.localeCompare(b.date));
+    return `<h2>${esc(k)} <span class="meta">${g.length}건</span></h2>${g.map(card).join('')}`;
+  }).join('') || '<p class="meta">조건에 맞는 기사가 없습니다.</p>';
+}
+render();
+</script>
+</body>
+</html>

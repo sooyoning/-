@@ -1,0 +1,6 @@
+# 일일 원본 PDF·작업 파일·누적 결과는 저장소에 올리지 않음 (언론사 저작물 포함 가능)
+work/
+output/
+data/records/*.json
+*.pdf
+__pycache__/
