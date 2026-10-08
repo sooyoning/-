@@ -7,7 +7,7 @@
 ## 한눈에 보는 흐름
 
 ```
-PDF ──► 페이지별 이미지(위·아래 타일, 200dpi) ──► Claude 비전 추출(구조화 JSON)
+PDF ──► 페이지별 이미지(위·아래 타일, 200dpi) ──► Claude가 직접 판독해 기사별 JSON 작성
    └─ 날짜·면은 PDF 텍스트 헤더에서 확정                    │ 이어진 기사 자동 병합
                                                             ▼
                          data/records/YYYY-MM-DD.json  (일자별 원본, 재처리 시 덮어쓰기)
@@ -24,39 +24,34 @@ PDF 본문은 **전부 이미지**(텍스트 레이어에는 날짜·면 헤더�
 
 ```bash
 cd press_digest
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...     # 또는 `ant auth login`
+pip install -r requirements.txt     # pdfplumber, python-docx, openpyxl (anthropic 은 api 엔진 쓸 때만)
 ```
 
-## 매일 사용법
+## 매일 사용법 (업로드 방식)
+
+1. 그날 PDF를 Claude Code 대화에 올리고 "오늘 것 정리해줘"라고 하면 됩니다.
+2. Claude가 지침(`CLAUDE.md`)대로 페이지를 읽어 기사별 레코드를 만들고 아래 명령으로 적재합니다.
+   ```bash
+   python -m digest process 보도자료_261009.pdf --engine manual      # 이미지·지침 준비 (날짜 자동 인식)
+   python -m digest ingest work/2026-10-09/records.json --date 2026-10-09   # 적재 + 일일 DOCX + 누적 HTML/XLSX
+   ```
+3. 결과: `output/daily/날짜.docx`(소관분야별 표), `output/cumulative/index.html`(누적·필터·이슈별 보기), `output/cumulative/누적정리.xlsx`.
+
+누적 조회·재생성은 API 키 없이 로컬에서 됩니다.
 
 ```bash
-# 1) PDF 처리: 추출 → 저장 → 일일 DOCX → 누적 HTML/XLSX 갱신
-python -m digest process ~/Downloads/보도자료_261009.pdf
-#    날짜는 PDF 헤더(없으면 파일명 yymmdd)에서 자동 인식, --date 로 지정 가능
-#    일부 페이지만: --pages 2-20   |  낮은 관련도 기사 제외: --min-relevance 보통
-
-# 2) 누적에서 찾기
 python -m digest list --category 가계부채·여신관리 --since 2026-10-01
 python -m digest list --q 요구불 --min-relevance 높음
 python -m digest list --issue "AI 연쇄 해킹"
-
-# 3) 보고서만 다시 만들기
-python -m digest report --date 2026-10-08
-python -m digest report --cumulative
+python -m digest report --date 2026-10-08 --min-relevance 보통    # 일일 보고서만 재생성(낮은 관련도 제외)
+python -m digest report --cumulative                               # 누적 HTML/XLSX 재생성
 ```
 
 - 같은 날 PDF를 다시 처리해도 (일자+매체+제목)이 같으면 **덮어쓰기**라 중복되지 않습니다.
-- 페이지 단위로 실패를 격리합니다. 실패 페이지는 `--pages 번호`로 재실행하세요.
-- 한 기사가 두 쪽에 걸쳐 제목 없이 이어지면 같은 매체의 직전 기사에 자동 병합합니다(`notes`에 기록).
+- 한 기사가 두 쪽에 걸치면 한 레코드로 합칩니다.
+- 만평·인사/부고란은 정책 정보가 없어 제외합니다.
 
-## API 키 없이 쓰기 (Claude Code 등으로 직접 정리)
-
-```bash
-python -m digest process 보도자료_261009.pdf --engine manual   # work/날짜/ 에 이미지+지침 생성
-# → 이미지를 읽고 work/날짜/records.json 작성(Claude Code에 "work/날짜 지침대로 정리해줘")
-python -m digest ingest work/2026-10-09/records.json --date 2026-10-09
-```
+> 참고: `--engine api`(Claude API 자동 추출)도 구현·테스트돼 있으나 사용자가 자동화를 원하지 않아 기본 흐름에서 뺐습니다. 설치: `pip install -r requirements.txt`.
 
 ## 소관분야 분류 바꾸기
 
