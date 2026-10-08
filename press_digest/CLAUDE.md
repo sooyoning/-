@@ -18,3 +18,8 @@
 - `data/records`, `output`, `work`, `*.pdf` 는 `.gitignore` 대상(언론사 저작물). 커밋하지 않는다.
 - 같은 날짜 재처리는 (일자+매체+제목) 기준 덮어쓰기라 안전하다.
 - 소관분야 분류표 변경 요청은 `categories.json` 만 고치면 된다.
+
+## 웹 페이지(web/index.html)
+- 사용자가 PDF를 웹 페이지에서 직접 올려 정리하는 경로. claude.ai Artifact로 게시(capabilities: sample{images}, db, downloads).
+- 수정 후 같은 파일 경로로 다시 게시(URL 유지). 저장 데이터는 db 컬렉션 `articles`(문서 id = 레코드 id).
+- 이 세션 경로(--engine manual)로 만든 레코드를 웹 저장소에 넣으려면 ArtifactData batch(file_path)로 `articles`에 set.

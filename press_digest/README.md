@@ -53,6 +53,16 @@ python -m digest report --cumulative                               # 누적 HTML
 
 > 참고: `--engine api`(Claude API 자동 추출)도 구현·테스트돼 있으나 사용자가 자동화를 원하지 않아 기본 흐름에서 뺐습니다. 설치: `pip install -r requirements.txt`.
 
+## 웹 페이지에서 직접 업로드 (API 키 없이)
+
+`web/index.html`은 claude.ai에 **Artifact로 게시**해서 쓰는 단일 페이지입니다. 게시된 Artifact는 보는 사람의 Claude 계정으로 Claude를 호출할 수 있어(`sample`, 이미지 전달 포함) 키가 필요 없습니다.
+
+- 정리하기: PDF 업로드 → 브라우저에서 쪽별 이미지 분할 → Claude가 기사별로 정리 → 저장소(`db`)에 누적
+- 누적 보기: 분야·이슈·일자별 보기, 필터·검색, 엑셀/HTML 보고서/JSON 백업 저장(`downloads`)
+- 로컬 파일로 열면 Claude 호출이 되지 않아 `output/cumulative/index.html`(조회 전용)과 다릅니다.
+- 소관분야 기준은 `web/index.html` 상단 `CATS`를 고치고 같은 경로로 다시 게시하면 바뀝니다.
+- 테스트: 목(mock) 런타임으로 실제 PDF 59쪽을 끝까지 돌려 확인(정상·실패·한도초과 후 재개). 실제 claude.ai 런타임에서의 첫 호출은 사용자가 허용 창을 눌러야 합니다.
+
 ## 소관분야 분류 바꾸기
 
 `categories.json`의 `name`/`desc`를 수정·추가하면 됩니다(`python -m digest categories`로 확인). `desc`가 모델의 분류 기준입니다.

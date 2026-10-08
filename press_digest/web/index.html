@@ -1,0 +1,595 @@
+<title>금융 뉴스 스크랩 정리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap">
+<style>
+/* 레이아웃: 상단 상태줄 + 두 개의 작업면(정리하기 / 누적 보기). 신문 스크랩의 먹색·종이색에 청록 포인트. */
+:root{
+  --bg:#f3f4f1; --surface:#ffffff; --ink:#1a2220; --mute:#5d6a66; --line:#dbe0dc; --soft:#eaeeeb;
+  --accent:#0b6b63; --accent-ink:#ffffff; --accent-soft:#dff0ed;
+  --warn:#a85410; --warn-soft:#fbeadb; --crit:#b3261e; --crit-soft:#fbe4e1; --ok:#1f7a45; --ok-soft:#dff2e6;
+  --f-sans:"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+  --f-serif:"Noto Serif KR","Batang","AppleMyungjo",serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1514; --surface:#172120; --ink:#e6eeeb; --mute:#98a8a3; --line:#2a3836; --soft:#1f2c2a;
+  --accent:#5cc4b6; --accent-ink:#06201d; --accent-soft:#17403b;
+  --warn:#f0a766; --warn-soft:#3a2a1b; --crit:#ff8f86; --crit-soft:#3d1f1c; --ok:#79d49e; --ok-soft:#173424; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1514; --surface:#172120; --ink:#e6eeeb; --mute:#98a8a3; --line:#2a3836; --soft:#1f2c2a;
+  --accent:#5cc4b6; --accent-ink:#06201d; --accent-soft:#17403b;
+  --warn:#f0a766; --warn-soft:#3a2a1b; --crit:#ff8f86; --crit-soft:#3d1f1c; --ok:#79d49e; --ok-soft:#173424; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-sans);font-size:14px;line-height:1.55;padding-inline:16px;padding-block:0 56px}
+.wrap{max-width:1120px;margin-inline:auto}
+header.top{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding-block:16px 12px}
+h1{font-family:var(--f-serif);font-size:22px;margin:0;letter-spacing:-.01em}
+.status{display:flex;flex-wrap:wrap;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:999px;background:var(--soft);color:var(--mute);border:1px solid var(--line)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--mute);display:inline-block}
+.pill.ok{color:var(--ok);background:var(--ok-soft);border-color:transparent}.pill.ok i{background:var(--ok)}
+.pill.no{color:var(--warn);background:var(--warn-soft);border-color:transparent}.pill.no i{background:var(--warn)}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+nav.tabs button{font:inherit;background:none;border:0;border-bottom:3px solid transparent;color:var(--mute);padding:8px 14px;cursor:pointer;font-weight:500}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:700}
+button,input,select{font:inherit;color:inherit}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.btn.danger{color:var(--crit)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=text],input[type=search],input[type=date],select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.stack{display:grid;gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.mute{color:var(--mute)}.small{font-size:12.5px}
+#drop{border:2px dashed var(--line);border-radius:12px;padding:28px 16px;text-align:center;background:var(--surface);cursor:pointer}
+#drop.over{border-color:var(--accent);background:var(--accent-soft)}
+#drop strong{display:block;font-family:var(--f-serif);font-size:17px;margin-bottom:4px}
+.bar{height:8px;border-radius:6px;background:var(--soft);overflow:hidden}
+.bar>div{height:100%;width:0;background:var(--accent);transition:width .25s}
+table{border-collapse:collapse;width:100%}
+.scroll{overflow-x:auto;max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
+th,td{text-align:left;padding:5px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--soft);font-size:12px;color:var(--mute);font-weight:500}
+td.num,th.num{font-variant-numeric:tabular-nums;text-align:right}
+.st{font-size:12px;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--mute)}
+.st.run{background:var(--accent-soft);color:var(--accent)}.st.done{background:var(--ok-soft);color:var(--ok)}
+.st.fail{background:var(--crit-soft);color:var(--crit)}
+.note{padding:10px 12px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+.note.err{background:var(--crit-soft);color:var(--crit)}.note.good{background:var(--ok-soft);color:var(--ok)}
+h2{font-family:var(--f-serif);font-size:16px;margin:22px 0 8px;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{cursor:pointer;border-radius:999px;padding:3px 11px;border:1px solid var(--line);background:var(--surface);font-size:13px}
+.chip[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:700}
+.art{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
+.meta{color:var(--mute);font-size:12.5px}
+.title{font-weight:700;font-size:15px;margin:2px 0 6px}
+.tag{display:inline-block;font-size:11.5px;padding:0 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin:0 4px 4px 0}
+.tag.hi{background:var(--crit-soft);color:var(--crit)}.tag.mid{background:var(--warn-soft);color:var(--warn)}
+.sec{margin-top:8px}.sec b{display:block;font-size:12.5px;color:var(--mute);margin-bottom:2px;font-weight:500}
+.art ul{margin:0;padding-left:18px}.art li{margin:1px 0}
+.impl{background:var(--accent-soft);border-radius:8px;padding:6px 10px}
+details summary{cursor:pointer;color:var(--accent);margin-top:6px}
+.art .actions{display:flex;justify-content:flex-end;margin-top:6px}
+.empty{padding:28px 16px;text-align:center;color:var(--mute);border:1px dashed var(--line);border-radius:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}input[type=search]{min-width:0;width:100%}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>금융 뉴스 스크랩 정리</h1>
+    <div class="status" id="status"><span class="pill"><i></i>연결 확인 중</span></div>
+  </header>
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-run" aria-selected="true" aria-controls="pane-run">정리하기</button>
+    <button role="tab" id="tab-view" aria-selected="false" aria-controls="pane-view">누적 보기 <span id="cnt" class="mute"></span></button>
+  </nav>
+
+  <section id="pane-run" role="tabpanel" class="stack" aria-labelledby="tab-run">
+    <div id="drop" tabindex="0" role="button" aria-label="PDF 파일 선택">
+      <strong>「신문기사 주요 내용」 PDF를 여기에 놓거나 눌러서 선택</strong>
+      <span class="mute">PDF는 이 브라우저에서 쪽별 이미지로 나누고, 이미지는 내 Claude 계정으로만 전달됩니다.</span>
+      <input id="pdf" type="file" accept="application/pdf,.pdf" hidden>
+    </div>
+
+    <div id="job" class="stack" hidden>
+      <div class="card stack">
+        <div class="row">
+          <strong id="fname" style="word-break:break-all"></strong>
+          <span class="mute small" id="fmeta"></span>
+        </div>
+        <div class="row">
+          <label for="date">기준일</label>
+          <input type="date" id="date">
+          <label for="tiles">이미지 분할</label>
+          <select id="tiles"><option value="2">2분할 (기본)</option><option value="3">3분할 (숫자 정밀)</option></select>
+          <label for="tier">모델</label>
+          <select id="tier"><option value="default">균형 (기본)</option><option value="complex">정밀 (느림·사용량↑)</option><option value="quick">빠름 (정확도↓)</option></select>
+        </div>
+        <div class="small mute" id="estimate"></div>
+      </div>
+
+      <div class="card stack">
+        <div class="row" style="justify-content:space-between">
+          <strong>정리할 쪽</strong>
+          <span class="row small">
+            <button class="btn small" id="selAll">전체 선택</button>
+            <button class="btn small" id="selNone">전체 해제</button>
+          </span>
+        </div>
+        <div class="scroll"><table>
+          <thead><tr><th></th><th class="num">쪽</th><th>날짜·면 헤더</th><th>상태</th><th></th></tr></thead>
+          <tbody id="pages"></tbody>
+        </table></div>
+        <div class="small mute">표지, 인사·부고, 만평처럼 정책 정보가 없는 쪽은 해제하면 사용량을 아낄 수 있습니다.</div>
+      </div>
+
+      <div class="card stack">
+        <div class="row">
+          <button class="btn primary" id="start">정리 시작</button>
+          <button class="btn" id="stop" hidden>중지</button>
+          <button class="btn" id="resume" hidden>남은 쪽 이어서 정리</button>
+          <span id="progress" class="mute"></span>
+        </div>
+        <div class="bar" aria-hidden="true"><div id="barfill"></div></div>
+        <div id="msg" hidden></div>
+      </div>
+
+      <div id="result"></div>
+    </div>
+  </section>
+
+  <section id="pane-view" role="tabpanel" hidden aria-labelledby="tab-view">
+    <div class="card stack">
+      <div class="row">
+        <input type="search" id="q" placeholder="검색 (제목·수치·입장·시사점)" aria-label="검색" style="flex:1;min-width:200px">
+        <input type="date" id="from" aria-label="시작일"><span class="mute">~</span><input type="date" id="to" aria-label="종료일">
+      </div>
+      <div class="row">
+        <select id="media" aria-label="매체"><option value="">매체 전체</option></select>
+        <select id="issue" aria-label="이슈"><option value="">이슈 전체</option></select>
+        <select id="rel" aria-label="관련도"><option value="">관련도 전체</option><option value="보통">보통 이상</option><option value="높음">높음만</option></select>
+        <select id="group" aria-label="보기"><option value="cat">소관분야별</option><option value="issue">이슈별(시간순)</option><option value="date">일자별</option></select>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="row">
+        <button class="btn" id="xlsx">엑셀로 저장</button>
+        <button class="btn" id="dayrep">선택 기간 보고서(HTML) 저장</button>
+        <button class="btn" id="backup">백업(JSON) 저장</button>
+        <button class="btn" id="restoreBtn">백업 불러오기</button>
+        <input type="file" id="restore" accept="application/json,.json" hidden>
+        <span id="expMsg" class="small mute"></span>
+      </div>
+    </div>
+    <div class="small mute" id="count" style="margin:10px 2px"></div>
+    <div id="out"></div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+"use strict";
+/* ============ 설정: 소관분야 분류표(여기를 고치면 분류 기준이 바뀝니다) ============ */
+const CATS = [
+  ["은행","은행업·은행권 건전성·예대금리·점포·지방은행·인터넷은행·은행 지배구조"],
+  ["가계부채·여신관리","가계대출·DSR·총량관리·주택담보대출·주택연금·부동산금융·PF"],
+  ["보험","보험업·보험사 건전성(K-ICS)·실손·퇴직연금·보험영업"],
+  ["금융투자·자본시장","증권·자산운용·공모펀드·IPO·불공정거래·공매도·거래소·증시"],
+  ["중소금융","여신전문(카드·캐피탈)·저축은행·상호금융·대부업·서민금융"],
+  ["금융소비자보호","불완전판매·보이스피싱·소비자 피해보상·분쟁조정·금융교육"],
+  ["전자금융·금융보안","해킹·개인정보 유출·전자금융거래법·망분리·사이버보안·AI 보안"],
+  ["디지털금융·핀테크·가상자산","핀테크·마이데이터·스테이블코인·가상자산·STO·AI 금융"],
+  ["정책금융·생산적금융","국민성장펀드·정책금융기관·산업은행·기업금융·벤처·모험자본"],
+  ["금융감독·검사·제재","금감원 검사·제재·내부통제·지배구조법·금융회사 책임"],
+  ["거시·금융시장","금리·환율·금융시장 안정·자금이동·한국은행·해외 금융동향"],
+  ["기타·타부처","금융과 직접 관련이 약하거나 위 분류에 맞지 않는 기사"]
+];
+const CAT_NAMES = CATS.map(c => c[0]);
+const FALLBACK = "기타·타부처";
+const GROUPS = ["금융위","금감원","정부·타부처","국회","수사기관","금융회사","소비자·시민단체","전문가·학계","기타"];
+const RELS = ["높음","보통","낮음"], RANK = {"낮음":0,"보통":1,"높음":2};
+const SKIP_HEADER = /사람들|인사|부고|People|피플/;
+const WD = "일월화수목금토";
+
+/* ============ 공통 유틸 ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clean = x => String(x ?? "").replace(/[ \t]+/g, " ").trim();
+const normKey = s => String(s ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+const fmtDate = d => { const [y,m,dd] = d.split("-").map(Number); return `${y}.${String(m).padStart(2,"0")}.${String(dd).padStart(2,"0")}(${WD[new Date(y,m-1,dd).getDay()]})`; };
+async function makeId(date, media, title) {
+  const key = `${date}|${normKey(media)}|${normKey(title)}`;
+  try {
+    const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(key));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("").slice(0,12);
+  } catch { let h = 5381; for (const ch of key) h = ((h << 5) + h + ch.codePointAt(0)) >>> 0; return "x" + h.toString(16); }
+}
+const dedupeKey = r => `${r.date}|${normKey(r.media)}|${normKey(r.title)}`;
+function normalize(raw, date) {
+  let cat = clean(raw.category); if (!CAT_NAMES.includes(cat)) cat = FALLBACK;
+  const subs = (raw.sub_categories || []).filter(c => CAT_NAMES.includes(c) && c !== cat);
+  let rel = clean(raw.relevance) || "보통"; if (!RELS.includes(rel)) rel = "보통";
+  const stances = (raw.stances || []).filter(s => s && clean(s.position)).map(s => ({
+    group: GROUPS.includes(clean(s.group)) ? clean(s.group) : "기타", actor: clean(s.actor), position: clean(s.position)}));
+  return { date, media: clean(raw.media), title: clean(raw.title), page_label: clean(raw.page_label), pdf_page: raw.pdf_page ?? null,
+    category: cat, sub_categories: subs, issue: clean(raw.issue), relevance: rel,
+    facts: (raw.facts || []).map(clean).filter(Boolean), situation: clean(raw.situation), stances,
+    implications: clean(raw.implications), notes: clean(raw.notes), source: raw.source || "" };
+}
+function mergeContinuations(perPage) {
+  const merged = [];
+  for (const [, arts] of [...perPage].sort((a, b) => a[0] - b[0])) for (const a of arts) {
+    const prev = [...merged].reverse().find(m => m.media === a.media);
+    if (a.continues_previous && prev) {
+      prev.facts = [...prev.facts, ...(a.facts || []).filter(f => !prev.facts.includes(f))];
+      prev.stances = [...(prev.stances || []), ...(a.stances || [])];
+      for (const k of ["situation","implications"]) if (!prev[k]) prev[k] = a[k];
+      prev.notes = [prev.notes, a.notes, `p.${a.pdf_page} 이어짐 병합`].filter(Boolean).join(" ");
+    } else merged.push({ ...a, facts: [...(a.facts || [])], stances: [...(a.stances || [])] });
+  }
+  return merged;
+}
+
+/* ============ 저장소: db 우선, 없으면 이 브라우저(localStorage) ============ */
+const store = {
+  mode: "none", db: null, records: [], listeners: [],
+  async init() {
+    try { const db = await claude.use("db"); if (db) { this.db = db; this.mode = "db"; } } catch {}
+    if (this.mode === "db") {
+      db_sub: this.db.collection("articles").onSnapshot(
+        snap => { this.records = snap.docs.map(d => d.data()).filter(Boolean); this.emit(); },
+        e => { this.records = []; this.emit(); $("status").insertAdjacentHTML("beforeend", `<span class="pill no"><i></i>저장소 오류(${esc(e.code)})</span>`); });
+    } else {
+      this.mode = "local";
+      try { this.records = JSON.parse(localStorage.getItem("fns_records") || "[]"); } catch { this.records = []; }
+      this.emit();
+    }
+  },
+  emit() { this.listeners.forEach(f => f()); },
+  async save(recs) {
+    const byKey = new Map(this.records.map(r => [dedupeKey(r), r.id]));
+    let added = 0, updated = 0;
+    for (const r of recs) {
+      const existing = byKey.get(dedupeKey(r));
+      r.id = existing || await makeId(r.date, r.media, r.title);
+      existing ? updated++ : added++;
+      if (this.mode === "db") await this.db.doc("articles/" + r.id).set(r);
+    }
+    if (this.mode !== "db") {
+      const map = new Map(this.records.map(r => [r.id, r])); recs.forEach(r => map.set(r.id, r));
+      this.records = [...map.values()];
+      try { localStorage.setItem("fns_records", JSON.stringify(this.records)); } catch {}
+      this.emit();
+    }
+    return { added, updated };
+  },
+  async remove(id) {
+    if (this.mode === "db") await this.db.doc("articles/" + id).delete();
+    else { this.records = this.records.filter(r => r.id !== id); try { localStorage.setItem("fns_records", JSON.stringify(this.records)); } catch {} this.emit(); }
+  }
+};
+
+/* ============ 기능 연결 상태 ============ */
+const cap = { sample: null, downloads: null, images: 0 };
+async function initCaps() {
+  const pills = [];
+  try { cap.sample = await claude.use("sample"); } catch {}
+  try { cap.downloads = await claude.use("downloads"); } catch {}
+  if (cap.sample) { try { const l = await cap.sample.limits(); cap.images = l.images ? l.images.maxCount : 0; } catch {} }
+  pills.push(cap.sample && cap.images ? `<span class="pill ok"><i></i>Claude 정리 사용 가능</span>`
+    : `<span class="pill no"><i></i>Claude 정리 사용 불가(이 화면에서는 누적 보기만)</span>`);
+  await store.init();
+  pills.push(store.mode === "db" ? `<span class="pill ok"><i></i>저장: 공유 저장소</span>` : `<span class="pill no"><i></i>저장: 이 브라우저에만</span>`);
+  $("status").innerHTML = pills.join("");
+  updateStart();
+}
+
+/* ============ 탭 ============ */
+function showTab(name) {
+  for (const t of ["run","view"]) { $("tab-" + t).setAttribute("aria-selected", t === name); $("pane-" + t).hidden = t !== name; }
+  try { sessionStorage.setItem("fns_tab", name); } catch {}
+}
+$("tab-run").onclick = () => showTab("run"); $("tab-view").onclick = () => showTab("view");
+
+/* ============ PDF 읽기 ============ */
+const HEADER_RE = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*[월화수목금토일]요일\s*((?:(?!\d{4}년)[^\n])*)/g;
+let pdf = null, fileName = "", pageInfo = [], results = new Map(), runState = { running: false, halt: false, ctls: new Set() };
+
+async function pageLines(page) {
+  const tc = await page.getTextContent();
+  const items = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: i.transform[5] }));
+  items.sort((a, b) => b.y - a.y || a.x - b.x);
+  const lines = []; let cur = null;
+  for (const it of items) { if (cur && Math.abs(cur.y - it.y) < 3) cur.t.push(it); else { cur = { y: it.y, t: [it] }; lines.push(cur); } }
+  return lines.map(l => l.t.sort((a, b) => a.x - b.x).map(i => i.s).join(" "));
+}
+async function openPdf(file) {
+  if (!window.pdfjsLib) { msg("PDF 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도하세요.", "err"); return; }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  $("job").hidden = false; msg("PDF를 읽는 중…"); results = new Map();
+  try {
+    pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  } catch (e) { msg("PDF를 열 수 없습니다: " + esc(e.message || e), "err"); return; }
+  fileName = file.name; pageInfo = [];
+  const dateCount = {};
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const lines = await pageLines(await pdf.getPage(n));
+    const headers = []; for (const ln of lines) for (const m of ln.matchAll(HEADER_RE)) {
+      const d = `${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`; dateCount[d] = (dateCount[d] || 0) + 1; headers.push(clean(m[4]));
+    }
+    pageInfo.push({ n, headers, state: "idle", count: 0, err: "", on: headers.length > 0 && !headers.some(h => SKIP_HEADER.test(h)) });
+  }
+  let date = Object.keys(dateCount).sort((a, b) => dateCount[b] - dateCount[a])[0];
+  if (!date) { const m = file.name.match(/(?<!\d)(\d{2})(\d{2})(\d{2})(?!\d)/); if (m) date = `20${m[1]}-${m[2]}-${m[3]}`; }
+  $("date").value = date || "";
+  $("fname").textContent = file.name; $("fmeta").textContent = `${pdf.numPages}쪽 · ${(file.size / 1048576).toFixed(1)}MB`;
+  restoreDraft(); renderPages(); msg(""); $("result").innerHTML = ""; updateEstimate(); updateStart();
+}
+const draftKey = () => `fns_draft_${$("date").value}_${fileName}`;
+function saveDraft() { try { localStorage.setItem(draftKey(), JSON.stringify([...results])); } catch {} }
+function restoreDraft() {
+  try { const d = JSON.parse(localStorage.getItem(draftKey()) || "null"); if (d) for (const [n, arts] of d) {
+    results.set(n, arts); const p = pageInfo[n - 1]; if (p) { p.state = "done"; p.count = arts.length; } } } catch {}
+}
+function renderPages() {
+  $("pages").innerHTML = pageInfo.map(p => {
+    const label = { idle: "대기", prep: "이미지 준비", ask: "Claude 분석 중", done: `완료 · ${p.count}건`, fail: "실패" }[p.state];
+    const cls = { prep: "run", ask: "run", done: "done", fail: "fail" }[p.state] || "";
+    return `<tr><td><input type="checkbox" data-p="${p.n}" ${p.on ? "checked" : ""} aria-label="${p.n}쪽 선택" ${runState.running ? "disabled" : ""}></td>
+      <td class="num">${p.n}</td><td>${esc(p.headers.join(" / ") || "(헤더 없음 · 표지 등)")}</td>
+      <td><span class="st ${cls}">${label}</span>${p.err ? ` <span class="small mute">${esc(p.err)}</span>` : ""}</td>
+      <td>${p.state === "fail" && !runState.running ? `<button class="btn small" data-retry="${p.n}">다시</button>` : ""}</td></tr>`;
+  }).join("");
+  const sel = pageInfo.filter(p => p.on).length;
+  if (!runState.running) { const done = pageInfo.filter(p => p.on && p.state === "done").length; $("progress").textContent = done ? `완료 ${done}/${sel}쪽` : `선택 ${sel}쪽`; }
+}
+$("pages").addEventListener("change", e => { const n = e.target.dataset.p; if (n) { pageInfo[n - 1].on = e.target.checked; updateEstimate(); updateStart(); } });
+$("pages").addEventListener("click", e => { const n = e.target.dataset.retry; if (n) runPages([Number(n)], true); });
+$("selAll").onclick = () => { pageInfo.forEach(p => p.on = true); renderPages(); updateEstimate(); updateStart(); };
+$("selNone").onclick = () => { pageInfo.forEach(p => p.on = false); renderPages(); updateEstimate(); updateStart(); };
+$("date").addEventListener("change", () => { results = new Map(); pageInfo.forEach(p => { p.state = "idle"; p.count = 0; p.err = ""; }); restoreDraft(); renderPages(); updateStart(); });
+function updateEstimate() {
+  const n = pageInfo.filter(p => p.on && p.state !== "done").length;
+  $("estimate").textContent = n ? `정리할 쪽 ${n}개 · 2쪽씩 동시에 처리하며 한 쪽당 대략 30~90초(모델·분할에 따라 다름). 내 Claude 사용량이 쪽 수만큼 소모됩니다. 이미 끝난 쪽은 다시 하지 않습니다.` : "";
+}
+function updateStart() {
+  const todo = pageInfo.filter(p => p.on && p.state !== "done").length;
+  $("start").disabled = runState.running || !todo || !$("date").value || !cap.sample || !cap.images;
+  $("start").hidden = runState.running;
+  $("stop").hidden = !runState.running;
+  $("resume").hidden = true;
+}
+function msg(text, kind = "") {
+  const el = $("msg"); el.hidden = !text; el.className = "note" + (kind ? " " + kind : ""); el.innerHTML = text;
+}
+
+/* ============ 이미지 타일 ============ */
+const toBlob = (c, q = 0.88) => new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("이미지 변환 실패")), "image/jpeg", q));
+async function renderTiles(n, tiles) {
+  const page = await pdf.getPage(n);
+  const dpi = tiles === 3 ? 200 : 150;
+  const vp = page.getViewport({ scale: dpi / 72 });
+  const full = document.createElement("canvas"); full.width = Math.ceil(vp.width); full.height = Math.ceil(vp.height);
+  const ctx = full.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, full.width, full.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  const H = full.height, step = H / tiles, ov = 0.08 * H, out = [];
+  for (let t = 0; t < tiles; t++) {
+    const top = t ? Math.max(0, Math.floor(t * step - ov)) : 0;
+    const bottom = t < tiles - 1 ? Math.min(H, Math.ceil((t + 1) * step + ov)) : H;
+    const c = document.createElement("canvas"); c.width = full.width; c.height = bottom - top;
+    c.getContext("2d").drawImage(full, 0, top, full.width, bottom - top, 0, 0, full.width, bottom - top);
+    out.push(await toBlob(c)); c.width = c.height = 0;
+  }
+  full.width = full.height = 0; page.cleanup();
+  return out;
+}
+
+/* ============ Claude 호출 ============ */
+const PROMPT = `당신은 금융위원회 대변인실의 '신문기사 주요 내용' 스크랩을 정리하는 정책 분석 보조자입니다.
+첨부 이미지는 신문 지면 한 페이지를 위에서 아래로 나눈 조각입니다(인접 이미지는 경계가 겹칩니다). 페이지에는 기사가 1건 또는 여러 건 있을 수 있습니다. 기사마다 레코드 1건을 만드세요.
+
+작성 원칙
+- 기사에 없는 내용은 절대 만들지 마세요. 수치는 숫자·단위·기준시점·출처(예: '국민의힘 ○○○ 의원실 자료')를 기사 그대로 옮깁니다. 도표·그래프의 수치도 읽을 수 있는 범위에서 facts에 포함합니다. 글씨가 흐려 확신이 없으면 값 뒤에 '[판독불확실]'을 붙이세요.
+- media: 지면 상단 제호(예: 매일경제, 한겨레). page_label: 날짜 줄의 면 정보(예: 'A06면 종합').
+- title: 기사 대제목 그대로. 헤드라인 없이 앞 기사의 이어지는 본문·그래픽만 있는 조각이면 continues_previous=true, title은 빈 문자열로 두고 같은 형식으로 내용만 채웁니다.
+- facts: 사실관계 핵심 3~8개 항목(문자열 배열). 각 항목은 한 문장, 금액·비율·건수·기간·날짜·주체를 명시.
+- situation: 사건의 경과와 현재 쟁점 1~3문장.
+- stances: 금융위·금감원·정부·국회·금융회사·소비자단체·전문가가 기사에서 밝힌 입장/발언. group은 주어진 구분 중 선택, actor는 기사 표기 그대로('금융위 관계자' 등), position은 입장 요약. 기사에 없으면 빈 배열.
+- implications: 금융위·금감원 소관 부서 관점의 시사점(후속 정책·감독 과제·리스크) 1~3문장. 기사 근거 범위 안의 해석이며 사실과 섞지 마세요.
+- category(1개)/sub_categories(0~2개): 아래 소관분야 목록에서만 선택. issue: 같은 사건·정책을 묶을 수 있는 짧은 이슈명(예: 'AI 연쇄 해킹 사고').
+- relevance: 금융위·금감원 소관 정책과의 관련도(높음/보통/낮음). 인물동정·칼럼·만평은 '낮음'.
+- notes: 판독 한계·특이사항(없으면 빈 문자열). 금융과 무관한 기사도 레코드는 만들되 relevance를 '낮음'으로 하세요.
+
+출력 형식: 다른 설명 없이 JSON 객체 하나만.
+{"articles":[{"media":"","title":"","page_label":"","continues_previous":false,"category":"","sub_categories":[],"issue":"","relevance":"높음","facts":[""],"situation":"","stances":[{"group":"","actor":"","position":""}],"implications":"","notes":""}]}`;
+function buildPrompt(p) {
+  return `${PROMPT}\n\n[소관분야 목록]\n${CATS.map(c => `- ${c[0]}: ${c[1]}`).join("\n")}\n\n[입장 주체 group 값] ${GROUPS.join(", ")}\n\nPDF ${p.n}페이지. 텍스트 레이어로 읽은 날짜·면 헤더: ${p.headers.join(" / ") || "없음"}\n이 페이지의 모든 기사를 JSON으로 정리하세요.`;
+}
+const FATAL = new Set(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed","images_unavailable","rate_limited","session_expired"]);
+const ERR_COPY = {
+  not_granted: "Claude 사용을 허용하지 않아 자동 정리를 쓸 수 없습니다. 페이지를 새로 열어 허용해 주세요.",
+  sampling_disabled: "이 계정에서는 Claude 호출을 쓸 수 없습니다.",
+  rate_limited: "사용량 한도 또는 호출 제한에 도달했습니다. 잠시 뒤 '남은 쪽 이어서 정리'를 눌러 주세요.",
+  session_expired: "로그인이 만료됐습니다. 다시 로그인한 뒤 이어서 정리하세요.",
+  images_unavailable: "이 화면에서는 이미지를 Claude에 보낼 수 없습니다.",
+  invalid_json: "응답을 JSON으로 읽지 못했습니다. 이 쪽만 '다시'를 눌러 보세요.",
+  refused: "Claude가 이 쪽의 처리를 거절했습니다.", empty_completion: "빈 응답을 받았습니다.",
+  image_rejected: "이미지가 거부됐습니다.", prompt_too_large: "입력이 너무 큽니다.", upstream_error: "일시적인 연결 오류입니다.", cancelled: "중지됨"
+};
+
+async function processPage(p, tier, tiles) {
+  p.state = "prep"; p.err = ""; renderPages();
+  const blobs = await renderTiles(p.n, Math.min(tiles, cap.images));
+  if (runState.halt) { p.state = "idle"; renderPages(); return; }
+  p.state = "ask"; renderPages();
+  const ctl = new AbortController(); runState.ctls.add(ctl);
+  try {
+    let data = await cap.sample.json(buildPrompt(p), { images: blobs, modelTier: tier, signal: ctl.signal });
+    const arts = Array.isArray(data) ? data : data && data.articles;
+    if (!Array.isArray(arts)) throw { code: "invalid_json", message: "articles 배열이 없습니다" };
+    arts.forEach(a => { a.pdf_page = p.n; });
+    results.set(p.n, arts); p.state = "done"; p.count = arts.length; saveDraft();
+  } catch (e) {
+    const code = (e && e.code) || "upstream_error";
+    if (code === "cancelled") { p.state = "idle"; p.err = ""; }
+    else { p.state = "fail"; p.err = ERR_COPY[code] ? "" : (e && e.message) || ""; p.errCode = code; p.err = code; }
+    if (FATAL.has(code)) { runState.halt = true; runState.fatal = ERR_COPY[code] || code; msg(esc(runState.fatal), "err"); }
+  } finally { runState.ctls.delete(ctl); renderPages(); }
+}
+async function runPages(list, single = false) {
+  if (runState.running || !cap.sample) return;
+  runState = { running: true, halt: false, ctls: new Set() };
+  const tier = $("tier").value, tiles = Number($("tiles").value);
+  const queue = [...list]; const total = queue.length; let finished = 0;
+  const setProg = () => { $("progress").textContent = `${finished}/${total}쪽 처리`; $("barfill").style.width = (100 * finished / total) + "%"; };
+  msg(""); updateStart(); $("stop").hidden = false; $("start").hidden = true; setProg(); renderPages();
+  const worker = async () => { while (!runState.halt) { const n = queue.shift(); if (n == null) break;
+    try { await processPage(pageInfo[n - 1], tier, tiles); } catch (e) { const p = pageInfo[n - 1]; p.state = "fail"; p.err = (e && e.message) || "오류"; renderPages(); }
+    finished++; setProg(); } };
+  await Promise.all([worker(), worker()]);
+  const stopped = runState.halt; runState.running = false; renderPages(); updateStart();
+  const left = pageInfo.filter(p => p.on && p.state !== "done").length;
+  if (left) { $("resume").hidden = false; $("start").hidden = true; }
+  await finalize(stopped, left);
+}
+async function finalize(stopped, left) {
+  if (!results.size) return;
+  const date = $("date").value;
+  const merged = mergeContinuations([...results].map(([n, arts]) => [n, arts]));
+  const recs = merged.map(a => normalize(a, date)).filter(r => r.title || r.facts.length);
+  recs.forEach(r => { r.source = fileName; });
+  const { added, updated } = await store.save(recs);
+  const failed = pageInfo.filter(p => p.on && p.state === "fail").length;
+  const fatal = runState.fatal ? esc(runState.fatal) + "<br>" : "";
+  msg(fatal + `${recs.length}건을 누적에 저장했습니다(신규 ${added}, 갱신 ${updated}).` + (left ? ` 남은 쪽 ${left}개${failed ? `(실패 ${failed})` : ""}는 '${failed ? "다시" : "남은 쪽 이어서 정리"}'로 이어갈 수 있습니다. 다시 저장할 때는 같은 기사가 덮어써집니다.` : ""),
+      runState.fatal ? "err" : left ? "" : "good");
+  if (stopped && left) {}
+  $("result").innerHTML = `<h2 style="margin-top:0">이번에 정리된 기사 ${recs.length}건</h2>` + recs.sort((a, b) => CAT_NAMES.indexOf(a.category) - CAT_NAMES.indexOf(b.category)).map(r => card(r, false)).join("");
+}
+$("start").onclick = () => runPages(pageInfo.filter(p => p.on && p.state !== "done").map(p => p.n));
+$("resume").onclick = () => runPages(pageInfo.filter(p => p.on && p.state !== "done").map(p => p.n));
+$("stop").onclick = () => { runState.halt = true; runState.ctls.forEach(c => c.abort()); $("stop").hidden = true; msg("중지하는 중… 진행 중이던 쪽은 처리되지 않은 상태로 남습니다."); };
+$("drop").onclick = () => $("pdf").click();
+$("drop").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("pdf").click(); } };
+$("pdf").onchange = e => { const f = e.target.files[0]; if (f) openPdf(f); };
+["dragover","dragenter"].forEach(t => $("drop").addEventListener(t, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave","drop"].forEach(t => $("drop").addEventListener(t, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f && /pdf$/i.test(f.name)) openPdf(f); });
+
+/* ============ 카드·누적 보기 ============ */
+function card(r, deletable = true) {
+  const relCls = r.relevance === "높음" ? "hi" : r.relevance === "보통" ? "mid" : "";
+  const order = Object.fromEntries(GROUPS.map((g, i) => [g, i]));
+  const sts = [...r.stances].sort((a, b) => (order[a.group] ?? 99) - (order[b.group] ?? 99))
+    .map(s => `<li>[${esc(s.group)}] ${s.actor ? `<b style="display:inline;color:var(--ink);font-weight:700">${esc(s.actor)}</b>: ` : ""}${esc(s.position)}</li>`).join("");
+  return `<div class="art">
+    <div class="meta">${fmtDate(r.date)} · ${esc(r.media)} · ${esc(r.page_label)}</div>
+    <div class="title">${esc(r.title)}</div>
+    <div><span class="tag">${esc(r.category)}</span>${r.sub_categories.map(c => `<span class="tag">${esc(c)}</span>`).join("")}${r.issue ? `<span class="tag">이슈 · ${esc(r.issue)}</span>` : ""}<span class="tag ${relCls}">관련도 ${esc(r.relevance)}</span></div>
+    <div class="sec"><b>사실관계(수치)</b><ul>${r.facts.map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>
+    <details><summary>상황 · 입장 · 시사점</summary>
+      <div class="sec"><b>상황</b>${esc(r.situation)}</div>
+      <div class="sec"><b>금융위·금감원 등 및 이해관계자 입장</b>${sts ? `<ul>${sts}</ul>` : '<span class="meta">기사에 명시된 입장 없음</span>'}</div>
+      <div class="sec"><b>시사점 (분석·의견)</b><div class="impl">${esc(r.implications)}</div></div>
+      ${r.notes ? `<div class="sec meta">※ ${esc(r.notes)}</div>` : ""}
+    </details>
+    ${deletable && r.id ? `<div class="actions"><button class="btn small danger" data-del="${esc(r.id)}">삭제</button></div>` : ""}</div>`;
+}
+const filters = { cats: new Set() };
+function matches(r) {
+  const q = $("q").value.trim();
+  if (filters.cats.size && ![r.category, ...r.sub_categories].some(c => filters.cats.has(c))) return false;
+  if ($("from").value && r.date < $("from").value) return false;
+  if ($("to").value && r.date > $("to").value) return false;
+  if ($("media").value && r.media !== $("media").value) return false;
+  if ($("issue").value && r.issue !== $("issue").value) return false;
+  if ($("rel").value && RANK[r.relevance] < RANK[$("rel").value]) return false;
+  if (q && ![r.title, r.situation, r.implications, r.issue, ...r.facts, ...r.stances.map(s => s.actor + s.position)].join(" ").includes(q)) return false;
+  return true;
+}
+function viewRows() { return store.records.filter(matches); }
+function refillSelect(id, values, label) {
+  const el = $(id), keep = el.value; el.innerHTML = `<option value="">${label}</option>` + values.map(v => `<option>${esc(v)}</option>`).join(""); el.value = values.includes(keep) ? keep : "";
+}
+function renderView() {
+  const all = store.records;
+  $("cnt").textContent = all.length ? `(${all.length})` : "";
+  refillSelect("media", [...new Set(all.map(r => r.media))].filter(Boolean).sort(), "매체 전체");
+  refillSelect("issue", [...new Set(all.map(r => r.issue))].filter(Boolean).sort(), "이슈 전체");
+  $("chips").innerHTML = CAT_NAMES.map(c => { const n = all.filter(r => r.category === c).length; return n ? `<button class="chip" data-cat="${esc(c)}" aria-pressed="${filters.cats.has(c)}">${esc(c)} ${n}</button>` : ""; }).join("");
+  const rows = viewRows(), mode = $("group").value;
+  const key = mode === "cat" ? r => r.category : mode === "issue" ? r => r.issue || "(이슈 미지정)" : r => fmtDate(r.date);
+  const groups = new Map(); rows.forEach(r => { const k = key(r); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+  let keys = [...groups.keys()];
+  if (mode === "cat") keys.sort((a, b) => CAT_NAMES.indexOf(a) - CAT_NAMES.indexOf(b));
+  if (mode === "issue") keys.sort((a, b) => groups.get(b).length - groups.get(a).length);
+  if (mode === "date") keys.sort((a, b) => groups.get(b)[0].date.localeCompare(groups.get(a)[0].date));
+  $("count").textContent = all.length ? `${rows.length}건 표시 (전체 ${all.length}건)` : "";
+  $("out").innerHTML = !all.length ? `<div class="empty">아직 저장된 기사가 없습니다.<br>'정리하기'에서 PDF를 올리면 여기에 누적됩니다.</div>`
+    : keys.map(k => { const g = groups.get(k); if (mode === "issue") g.sort((a, b) => a.date.localeCompare(b.date)); else g.sort((a, b) => b.date.localeCompare(a.date) || a.media.localeCompare(b.media));
+        return `<h2>${esc(k)} <span class="meta">${g.length}건</span></h2>${g.map(r => card(r)).join("")}`; }).join("") || `<div class="empty">조건에 맞는 기사가 없습니다.</div>`;
+}
+store.listeners.push(renderView);
+["q","from","to","media","issue","rel","group"].forEach(id => $(id).addEventListener("input", renderView));
+$("chips").addEventListener("click", e => { const c = e.target.dataset.cat; if (c) { filters.cats.has(c) ? filters.cats.delete(c) : filters.cats.add(c); renderView(); } });
+let delArm = null;
+$("out").addEventListener("click", async e => {
+  const id = e.target.dataset.del; if (!id) return;
+  if (delArm !== id) { delArm = id; e.target.textContent = "정말 삭제"; setTimeout(() => { if (delArm === id) { delArm = null; if (e.target.isConnected) e.target.textContent = "삭제"; } }, 3000); return; }
+  delArm = null; try { await store.remove(id); } catch { e.target.textContent = "삭제 실패"; }
+});
+
+/* ============ 내보내기 · 백업 ============ */
+function expMsg(t, bad) { const el = $("expMsg"); el.textContent = t; el.style.color = bad ? "var(--crit)" : ""; }
+async function saveFile(filename, data) {
+  if (!cap.downloads) { expMsg("이 화면에서는 파일 저장을 쓸 수 없습니다.", true); return; }
+  try { await cap.downloads.save({ filename, data }); expMsg(`${filename} 저장 요청을 보냈습니다.`); }
+  catch (e) { expMsg(e && e.code === "declined" ? "저장을 취소했습니다." : `저장하지 못했습니다(${(e && e.code) || "오류"}).`, true); }
+}
+const COLS = ["일자","매체명","제목","사실관계(수치)","상황","금융위·금감원 등 및 이해관계자 입장","시사점"];
+const stText = r => [...r.stances].sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group)).map(s => `• [${s.group}] ${s.actor ? s.actor + ": " : ""}${s.position}`).join("\n");
+const rowVals = r => [fmtDate(r.date), r.media, r.title, r.facts.map(f => "• " + f).join("\n"), r.situation, stText(r), r.implications];
+$("xlsx").onclick = () => {
+  if (!window.XLSX) { expMsg("엑셀 라이브러리를 불러오지 못했습니다.", true); return; }
+  const rows = viewRows(); if (!rows.length) { expMsg("저장할 기사가 없습니다.", true); return; }
+  const head = [...COLS, "소관분야","관련분야","이슈","관련도","면","PDF쪽"];
+  const mk = list => { const ws = XLSX.utils.aoa_to_sheet([head, ...list.map(r => [...rowVals(r), r.category, r.sub_categories.join(", "), r.issue, r.relevance, r.page_label, r.pdf_page])]);
+    ws["!cols"] = [13,10,32,70,34,50,38,16,18,22,8,14,7].map(w => ({ wch: w })); return ws; };
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, mk(rows), "전체");
+  CAT_NAMES.forEach(c => { const l = rows.filter(r => r.category === c); if (l.length) XLSX.utils.book_append_sheet(wb, mk(l), c.slice(0, 28)); });
+  saveFile(`금융뉴스_누적정리_${new Date().toISOString().slice(0,10)}.xlsx`, XLSX.write(wb, { bookType: "xlsx", type: "array" }));
+};
+$("dayrep").onclick = () => {
+  const rows = viewRows(); if (!rows.length) { expMsg("저장할 기사가 없습니다.", true); return; }
+  const dates = rows.map(r => r.date).sort(); const span = dates[0] === dates.at(-1) ? fmtDate(dates[0]) : `${fmtDate(dates[0])} ~ ${fmtDate(dates.at(-1))}`;
+  const nl = s => esc(s).replace(/\n/g, "<br>");
+  const body = CAT_NAMES.map(c => { const g = rows.filter(r => r.category === c).sort((a, b) => a.date.localeCompare(b.date)); if (!g.length) return "";
+    return `<h2>■ ${esc(c)} (${g.length}건)</h2><table><thead><tr>${COLS.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${g.map(r => `<tr>${rowVals(r).map((v, i) => `<td>${i === 2 ? `<b>${esc(v)}</b>${r.issue ? `<br><small>〔이슈: ${esc(r.issue)}〕</small>` : ""}` : nl(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`; }).join("");
+  const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>신문기사 주요 내용 정리</title><style>body{font-family:"Malgun Gothic",sans-serif;font-size:11px}h1{font-size:16px}h2{font-size:13px;color:#1f3864;margin:18px 0 6px}table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #888;padding:4px 6px;vertical-align:top;word-break:break-word}th{background:#d9e2f3}@page{size:A4 landscape;margin:10mm}</style></head><body><h1>신문기사 주요 내용 정리 — ${span}</h1><p>기사 ${rows.length}건 · 시사점은 기사 근거 범위 내 분석(의견)이며 사실관계와 구분됨</p>${body}</body></html>`;
+  saveFile(`신문기사_정리_${dates[0]}${dates[0] === dates.at(-1) ? "" : "_" + dates.at(-1)}.html`, html);
+};
+$("backup").onclick = () => saveFile(`금융뉴스_백업_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(store.records, null, 1));
+$("restoreBtn").onclick = () => $("restore").click();
+$("restore").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const arr = JSON.parse(await f.text()); if (!Array.isArray(arr)) throw new Error("배열이 아닙니다");
+    const recs = arr.filter(r => r && r.date && r.title).map(r => ({ ...normalize(r, r.date), id: r.id }));
+    const { added, updated } = await store.save(recs); expMsg(`${recs.length}건을 불러왔습니다(신규 ${added}, 갱신 ${updated}).`);
+  } catch (err) { expMsg("백업 파일을 읽지 못했습니다: " + (err.message || err), true); }
+  e.target.value = "";
+};
+
+/* ============ 시작 ============ */
+(async () => {
+  try { const t = sessionStorage.getItem("fns_tab"); if (t === "view") showTab("view"); } catch {}
+  renderView(); updateStart();
+  if (!window.claude || !window.claude.use) { $("status").innerHTML = `<span class="pill no"><i></i>Claude 연결 없음(저장된 화면만 표시)</span>`; await store.init().catch(() => {}); return; }
+  await initCaps();
+})();
+</script>
