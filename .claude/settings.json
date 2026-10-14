@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "budget-review": {
+      "source": {
+        "source": "github",
+        "repo": "parkjui92/budget-review"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "budget-review@budget-review": true
+  }
+}
